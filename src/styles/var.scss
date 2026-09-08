@@ -1,0 +1,8 @@
+/* global css variable */
+$primary-color: var(--el-color-primary); // 主题色
+$footer-height: 40px; // 页脚高度
+$main-padding: 12px; // 主内容区padding
+$shadow: var(--el-box-shadow-lighter); // 卡片阴影
+$shadow-hover: var(--el-box-shadow-light);
+$text-color: var(--el-text-color-primary);
+$border-color: var(--el-border-color);

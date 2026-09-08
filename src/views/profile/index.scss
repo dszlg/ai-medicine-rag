@@ -1,0 +1,28 @@
+@use '@/styles/var' as *;
+.profile-sidebar {
+  padding: 24px 16px;
+  text-align: center;
+}
+.avatar-section {
+  margin-bottom: 16px;
+}
+.avatar-click {
+  cursor: pointer;
+}
+.avatar-tip {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.profile-sidebar h3 {
+  font-size: 16px;
+}
+.profile-sidebar .el-menu {
+  border-right: none;
+}
+.content-title {
+  padding-bottom: 12px;
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: 18px;
+  border-bottom: 1px solid #f0f0f0;
+}

@@ -1,0 +1,9 @@
+// 要让 Code Spell Checker 不标记特定单词
+
+{
+  "version": "0.2",
+  "words": ["React", "API", "URL", "jwt", "tsconfig"], // 视为正确的单词（加入词典）
+  "ignoreWords": ["vite", "Geeker", "Pageable", "iconfont", "unplugin", "echarts"], // 忽略的单词（不加入词典）
+  "ignorePaths": ["node_modules/**", "dist/**", "**/*.d.ts"], // 排除无需检查的文件/目录
+  "ignoreRegExpList": ["0x[0-9a-fA-F]+", "^\\$[a-zA-Z_]+$"] // 忽略匹配正则的文本
+}
