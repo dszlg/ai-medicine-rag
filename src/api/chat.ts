@@ -19,7 +19,7 @@ export const getSessionMessage = (id: number): Promise<Result<MessageVO[]>> => {
 
 export type OnMessage = (content: string) => void
 export type OnComplete = () => void
-export type OnError = (error: any) => void
+export type OnError = (error: Error) => void
 /**
  * 发送消息
  */
@@ -28,9 +28,25 @@ export const chatSend = async (
   onMessage: OnMessage,
   onComplete?: OnComplete,
   onError?: OnError,
-  signal?: AbortSignal
+  abort?: AbortController
 ) => {
   const userStore = useUserStore()
+
+  // 设置超时时间
+  let timer: number | null = null
+  timer = window.setTimeout(() => {
+    abort?.abort()
+    timer = null
+    onError?.(new Error('请求超时，请稍后重试'))
+  }, 10000)
+
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+
   try {
     const response = await fetch(import.meta.env.VITE_API_URL + '/chat/send', {
       method: 'POST',
@@ -38,8 +54,8 @@ export const chatSend = async (
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + userStore.getToken
       },
-      signal,
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: abort?.signal
     })
 
     if (!response.ok) {
@@ -65,14 +81,13 @@ export const chatSend = async (
         }
         if (data.type === 'done') {
           onComplete?.()
+          clearTimer()
         }
       }
     }
-  } catch (error) {
-    if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-      return
-    }
+  } catch (error: Error | any) {
     ElMessage.error('发送消息失败，请稍后重试')
+    clearTimer()
     onError?.(error)
   }
 }
