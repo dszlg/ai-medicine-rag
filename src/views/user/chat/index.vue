@@ -13,7 +13,6 @@ const inputText = ref('')
 const currentSessionId = ref<number | null>(null)
 const historyChatRef = ref<InstanceType<typeof HistoryChat> | null>(null)
 const chatContainerRef = ref<HTMLElement | null>(null)
-let abortController: AbortController | null = null
 
 onMounted(() => {
   currentSessionId.value = Number(sessionStorage.getItem('currentSessionId'))
@@ -61,7 +60,6 @@ const loadSessionMessages = async (id: number) => {
   }
 }
 
-// 发送消息
 const sendMessage = async () => {
   // 空字符和加载中不可发送
   if (!inputText.value.trim() || isThinking.value || isLoading.value) return
@@ -80,7 +78,6 @@ const sendMessage = async () => {
   inputText.value = ''
   scrollToBottom()
 
-  abortController = new AbortController()
   chatSend(
     { message: userMsg.content, session_id: currentSessionId.value },
     (msg: string) => {
@@ -89,26 +86,12 @@ const sendMessage = async () => {
       scrollToBottom()
     },
     async () => {
+      // isThinking.value = false
       // 加载消息列表和最新的session_id
       const sessionId = await historyChatRef.value?.loadSessionList()
       currentSessionId.value = sessionId ?? null
-      abortController = null
-    },
-    err => {
-      console.log(err)
-      abortController = null
-    },
-    abortController
+    }
   )
-}
-
-// 取消发送
-const cancelSend = () => {
-  isThinking.value = false
-  if (abortController) {
-    abortController.abort()
-    abortController = null
-  }
 }
 </script>
 
@@ -141,15 +124,12 @@ const cancelSend = () => {
           @keydown.enter.exact.prevent="sendMessage"
         />
         <el-button
-          v-if="!isThinking"
           type="primary"
           class="gradient-btn send-btn"
+          :loading="isThinking"
           @click="sendMessage"
         >
           发送
-        </el-button>
-        <el-button v-else type="primary" class="gradient-btn send-btn" @click="cancelSend">
-          取消
         </el-button>
       </div>
     </div>
