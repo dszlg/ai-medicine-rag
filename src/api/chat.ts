@@ -32,22 +32,32 @@ export const chatSend = async (
 ) => {
   const userStore = useUserStore()
 
-  // 设置超时时间
+  // 设置连续无响应超时时间，收到数据后重新计时
   let timer: number | null = null
-  timer = window.setTimeout(() => {
-    abort?.abort()
-    timer = null
-    onError?.(new Error('请求超时，请稍后重试'))
-  }, 10000)
 
   const clearTimer = () => {
-    if (timer) {
+    if (timer !== null) {
       clearTimeout(timer)
       timer = null
     }
   }
 
+  // 请求建立和收到数据后开始计时
+  const resetTimer = () => {
+    clearTimer()
+    timer = window.setTimeout(() => {
+      try {
+        abort?.abort()
+        timer = null
+        throw new Error('timeout')
+      } catch (err: Error | any) {
+        onError?.(err)
+      }
+    }, 1000)
+  }
+
   try {
+    resetTimer()
     const response = await fetch(import.meta.env.VITE_API_URL + '/chat/send', {
       method: 'POST',
       headers: {
@@ -67,26 +77,39 @@ export const chatSend = async (
       throw new Error('无法获取可读流')
     }
 
+    abort?.signal.addEventListener(
+      'abort',
+      () => {
+        void reader.cancel()
+      },
+      { once: true }
+    )
+
     const decoder = new TextDecoder('utf-8')
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
+      resetTimer()
       const chunk = decoder.decode(value, { stream: true })
       const lines = chunk.trim().split('\n')
       for (const line of lines) {
         if (line === '') continue
         const data = JSON.parse(line.replace(/data: /g, ''))
+
+        // 发送内容
         if (data.type === 'content') {
           onMessage(data.content)
         }
+
+        // 发送完成
         if (data.type === 'done') {
           onComplete?.()
           clearTimer()
         }
       }
     }
+    clearTimer()
   } catch (error: Error | any) {
-    ElMessage.error('发送消息失败，请稍后重试')
     clearTimer()
     onError?.(error)
   }

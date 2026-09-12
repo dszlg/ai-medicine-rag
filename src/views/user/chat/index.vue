@@ -7,12 +7,14 @@ import SessionDetail from './components/SessionDetail.vue'
 
 const messages = ref<MessageVO[]>([])
 const isThinking = ref(false) // 思考中
+const isTyping = ref(false) // 正在输出
 const isLoading = ref(false)
 const loadFailed = ref(false)
 const inputText = ref('')
 const currentSessionId = ref<number | null>(null)
 const historyChatRef = ref<InstanceType<typeof HistoryChat> | null>(null)
 const chatContainerRef = ref<HTMLElement | null>(null)
+let abortController: AbortController | null = null
 
 onMounted(() => {
   currentSessionId.value = Number(sessionStorage.getItem('currentSessionId'))
@@ -60,6 +62,7 @@ const loadSessionMessages = async (id: number) => {
   }
 }
 
+// 发送消息
 const sendMessage = async () => {
   // 空字符和加载中不可发送
   if (!inputText.value.trim() || isThinking.value || isLoading.value) return
@@ -78,20 +81,47 @@ const sendMessage = async () => {
   inputText.value = ''
   scrollToBottom()
 
+  abortController = new AbortController()
   chatSend(
     { message: userMsg.content, session_id: currentSessionId.value },
     (msg: string) => {
       isThinking.value = false
+      isTyping.value = true
       messages.value.findLast(item => (item.content += msg))
       scrollToBottom()
     },
     async () => {
-      // isThinking.value = false
       // 加载消息列表和最新的session_id
+      isTyping.value = false
       const sessionId = await historyChatRef.value?.loadSessionList()
       currentSessionId.value = sessionId ?? null
-    }
+      abortController = null
+    },
+    err => {
+      isThinking.value = false
+      isTyping.value = false
+      abortController = null
+      console.dir(err.message)
+
+      // 根据错误类型处理
+      if (err.message === 'Failed to fetch') {
+        messages.value.findLast(item => (item.content = '网络错误，请稍后重试'))
+      } else if (err.message === 'timeout') {
+        ElMessage.warning('请求超时，请稍后重试')
+      }
+    },
+    abortController
   )
+}
+
+// 取消发送
+const cancelSend = () => {
+  isThinking.value = false
+  isTyping.value = false
+  if (abortController) {
+    abortController.abort()
+    abortController = null
+  }
 }
 </script>
 
@@ -114,7 +144,6 @@ const sendMessage = async () => {
         </div>
         <div v-if="loadFailed">出错了，请稍后重试<el-button>重试</el-button></div>
         <SessionDetail :messages="messages" :is-thinking="isThinking" />
-        <!-- <div v-if="sending" class="typing-indicator"><span></span><span></span><span></span></div> -->
       </div>
       <div class="chat-input">
         <el-input
@@ -124,12 +153,15 @@ const sendMessage = async () => {
           @keydown.enter.exact.prevent="sendMessage"
         />
         <el-button
+          v-if="!isThinking && !isTyping"
           type="primary"
           class="gradient-btn send-btn"
-          :loading="isThinking"
           @click="sendMessage"
         >
           发送
+        </el-button>
+        <el-button v-else type="default" class="gradient-btn send-btn" @click="cancelSend">
+          取消
         </el-button>
       </div>
     </div>
