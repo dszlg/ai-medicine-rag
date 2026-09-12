@@ -27,10 +27,10 @@ export const chatSend = async (
   data: ChatRequestDTO,
   onMessage: OnMessage,
   onComplete?: OnComplete,
-  onError?: OnError
+  onError?: OnError,
+  signal?: AbortSignal
 ) => {
   const userStore = useUserStore()
-  const ctrlAbout = new AbortController()
   try {
     const response = await fetch(import.meta.env.VITE_API_URL + '/chat/send', {
       method: 'POST',
@@ -38,7 +38,7 @@ export const chatSend = async (
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + userStore.getToken
       },
-      signal: ctrlAbout.signal,
+      signal,
       body: JSON.stringify(data)
     })
 
@@ -69,6 +69,9 @@ export const chatSend = async (
       }
     }
   } catch (error) {
+    if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+      return
+    }
     ElMessage.error('发送消息失败，请稍后重试')
     onError?.(error)
   }
